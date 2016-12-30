@@ -1,0 +1,35 @@
+#!/usr/bin/env Rscript
+library(knitr)
+
+# Get the filename given as an argument in the shell.
+args = commandArgs(TRUE)
+path_to_file = args[1]
+filename = strsplit(path_to_file, "/")[[1]]
+filename = filename[length(filename)]
+
+# Check that it's a .Rmd file.
+if(!grepl(".Rmd", filename)) {
+  stop("You must specify a .Rmd file.")
+}
+
+# Knit and place in _posts.
+dir = paste0("../jakubglinka.github.io/_posts/", Sys.Date(), "-")
+output = paste0(dir, sub('.Rmd', '.md', filename))
+knit(path_to_file, output)
+
+# Copy .png files to the images directory.
+fromdir = "{{ site.url }}/img"
+todir = "../jakubglinka.github.io/img"
+
+pics = list.files(fromdir, ".png")
+pics = sapply(pics, function(x) paste(fromdir, x, sep="/"))
+file.copy(pics, todir, overwrite = TRUE)
+
+# clean
+unlink("./{{ site.url }}", recursive = TRUE)
+
+#
+#setwd("../jakubglinka.github.io/")
+#system("git add --all")
+#system(paste0("git commit --m 'posted ",filename,"'"))
+#system("git push origin master")

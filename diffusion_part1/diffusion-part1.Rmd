@@ -1,0 +1,296 @@
+---
+layout: post
+title: "Sampling from shifted Gompertz distribution"
+subtitle: using Accept-Reject method 
+bigimg: /img/math.jpg
+output:
+  html_document:
+    toc: no
+  md_document:
+    pandoc_args: --latexmathml
+    variant: markdown_github+tex_math_dollars+autolink_bare_uris+ascii_identifiers
+tags: R
+---
+
+```{r setup, include=FALSE}
+
+  knitr::opts_chunk$set(echo = TRUE)
+  post.title <- "diffusion-part1"
+  post.date <- Sys.Date()
+  fig.path <- paste0("{{ site.url }}/img/", post.date, "-", post.title, "-")
+  knitr::opts_chunk$set(fig.path=fig.path)
+  suppressPackageStartupMessages(library(ggplot2))
+  library(magrittr)
+  source("utils.R")
+  
+```
+
+## Shifted Gompertz distribution
+
+Shifted Gompertz distribution is useful distribution which can be used to describe time needed for adopting new innovation within the market. Recent studies showed that it outperforms *Bass* model of diffusion in some cases[^1]. 
+
+Its *pdf* is given by 
+
+$$p(t | b, \eta) = b\exp(-bt) \exp(-\eta e^{-bt})[1 + \eta(1 - \exp(-bt))]$$
+
+Below we show what happens if we increase $\eta$ parameter (inverse of propensity to adopt) for different values of $b$ **appeal of innovation**.
+Higher $\eta$ parameter is set more density mode is shifted away from $0$.
+
+```{r, echo=FALSE, fig.width=12, fig.height=4, warning=FALSE}
+
+  sg_pdf <- function(t, b = .1, eta = 3) {
+    exp(log(b) - b*t - eta * exp(- b * t) + log(1 + eta * (1 - exp( - b * t))))
+  }
+
+  t <- seq(0, 30, by = .1)
+  pars <- expand.grid(b = c(.3, 1.0), eta = c(2:10))
+  tab <- pars %>% 
+    apply(1, function(xx) data.frame(
+                                      par = paste0("b = ", xx[1]," eta = ", xx[2]),
+                                      b = xx[1], 
+                                      eta = xx[2],
+                                      t = t, 
+                                      density = sg_pdf(t, xx[1], xx[2]))
+    ) %>% do.call(rbind, .)
+
+  ggplot(aes(x = t, y = density, fill = par, colour = par), data = tab) +
+    geom_line() +
+    theme_classic() +
+    xlim(0, 20) + 
+    facet_wrap("b", ncol = 2) +
+    theme(legend.position = "none")
+
+
+```
+
+This distribution do not have closed form solutions for moments. If we want to calculate them and also simulate data for model validation we need to be able to sample from it.
+Luckily there is a simple way of producing samples from arbitrary density:  
+
+**Fundamental Theorem of Simulation**.  
+*Simulating*
+
+$$ X \sim f(x) $$
+
+*is equivalent to simulating*
+
+$$ (X, U) \sim \mathbb{U}\{(x, u) : 0 < u < f(x)\} \ \ \ \ \blacksquare $$
+
+Direct corollary introduces convenient way of simulating from target distribution:
+
+**Accept-Reject algorithm.**  
+*Let $X \sim f(x)$ and let $g(x)$ be a density function that satisfies $f(x) \leq M g(x)$ for some constant $M \geq 1$ and $h:=Mg$. 
+Then, to simulate  $X \sim f$ it is sufficient to generate pair*
+
+$$ Y \sim g \ \ \ \ and \ \ \ \  (U|Y = y) \sim \mathbb{U}[0, h(y)], $$
+
+*until $0 < u < f(x).$ $\ \ \ \ \ \ \blacksquare$*  
+
+Function $h$ is sometimes called *envelope* function. More tight the inequality the more efficient sampling will be.
+
+## Simulating from Shifted Gumbel distribution
+
+Let's assume for a moment that our density has bounded support.
+Below we plot an example of using **Accept-Reject** method for sampling from target density with simple constant envelope function:
+
+
+```{r, echo=FALSE, fig.width=12, fig.height=4}
+
+  set.seed(2014)
+  sg_pdf <- function(t, b = .1, eta = 3) exp(log(b) - b*t - eta * exp(- b * t) + log(1 + eta * (1 - exp( - b * t))))
+  sg_mode <- function(b = .1, eta = 3) ifelse(eta <= .5, 0.0, -1.0 / b * log((3 + eta - (eta * eta + 2* eta + 5)^(.5))/(2 * eta)))  
+  sg_max <- function(b = .1, eta = 3) sg_pdf(sg_mode(b, eta), b, eta)
+  
+  t <- seq(0, 40, .01)
+  
+  tab <- data.frame(t = t, density = sg_pdf(t, .3, 10), g = dexp(x = t, rate = .3), box = sg_max(.3, 10.0))
+  tab$box[1] <- 0.0
+  tab$box[length(tab$box)] <- 0.0
+  
+  n <- length(t)
+  sample.x <- runif(n = n, min = 0, max = 40)
+  sample.y <- runif(n = n, min = 0, max = sg_max(.3, 10.0))
+  accept <- sample.y <= sg_pdf(sample.x, .3, 10)
+  
+  p1 <- ggplot(aes(x = t, y = density), data = tab) + 
+    geom_area(fill = "grey") + 
+    theme_classic() + 
+    geom_line(aes(y = box), linetype = 2) + 
+    geom_point(aes(x = sample.x, y = sample.y), colour = ifelse(accept, "black", "grey")) + 
+    theme(legend.position = "none") + 
+    annotate("text", x = 35, y = .08, label = paste0("acc = ", round(mean(accept)*100, 2), "%"))
+      
+  t <- sample.x[accept]
+  p2 <- ggplot(aes(x = t), data = data.frame(t = t)) + 
+    theme_classic() + 
+    geom_histogram(aes(y = ..density..), binwidth = 1) +
+    xlim(0, 40) + 
+    geom_line(aes(y = sg_pdf(t, .3, 10)))
+  
+  multiplot(p1, p2, cols = 2)
+  
+  
+```
+
+This way of simulating distribution works but is not particularly efficient as more than 75% of sample is rejected and that's with assumption that the support of target density is in $(0, 40)$. If we would extend support of the target density to further away from $0$ we would see increasing drop of sampler efficiency.
+
+We can easily improve our sampling method by noticing the following inequality:
+
+$$\forall_{t>0} \ \ p[t|b,\eta] \le (1 + \eta) b\exp(-bt) = h(t)$$
+
+This will provide us nice majorization function for the tail of shifted Gompertz distribution by scaled exponential density. 
+
+In order to make it more tight around mode of our target density we can define improved envelope function as:
+
+$$h'(t) =  1_{[0, t^*]} * m(b, \eta) + 1_{(t^*, +\infty)} * (1 + \eta) * b \exp(-bt)$$
+
+
+where $t^*$ is a point where envelope function reaches maximum of shifted Gompertz density and $m$ is a value of the density at this point.
+
+Of course $h'$ is not a density itself. Since it is integrable we can recover density $g$ as
+
+$$ g(t| b, \eta) := \frac{h'(t|b, \eta)}{\int_{0}^{\infty} h'(s|b, \eta) \mathrm{d}s} = \frac{1}{M(b, \eta)} h'(t|b,\eta)$$
+
+$$ = \frac{1}{M(b, \eta)} \left\{ 1_{[0, t^*]} * m(b, \eta) + 1_{(t^*, +\infty)} * (1 + \eta) * b \exp(-bt) \right\} $$
+
+$$ = \frac{m(b,\eta) t^*}{M(b,\eta)} * \frac{1}{t^*}1_{[0, t^*]}  + \frac{m(b,\eta) e^{-bt^*}(1+\eta)}{M(b,\eta)} * 1_{(t^*, +\infty)} b \exp(-b(t - t^*))$$
+
+$$ = p_1(b,\eta) * \mathbb{U}[0, t^*] + p_2(b, \eta) * \mathrm{Exp}(b)|_{t^*}^{\infty} $$
+
+which is mixture of uniform and truncated exponential distribution.
+
+### Algorithm pseudocode
+
+    select component with probabilities p1(b, eta) and p2(b, eta)
+    Repeat
+      sample y from selected density component
+      sample u from U[0, h'(y|b, eta)]
+    Until u < p(y|b, eta)
+
+### Sampling results
+
+
+```{r, echo=FALSE, fig.width=12, fig.height=4, warning=FALSE}
+
+  set.seed(2014)
+  sg_pdf <- function(t, b = .1, eta = 3) exp(log(b) - b*t - eta * exp(- b * t) + log(1 + eta * (1 - exp( - b * t))))
+  sg_mode <- function(b = .1, eta = 3) ifelse(eta <= .5, 0.0, -1.0 / b * log((3 + eta - (eta * eta + 2* eta + 5)^(.5))/(2 * eta)))  
+  sg_max <- function(b = .1, eta = 3) sg_pdf(sg_mode(b, eta), b, eta)
+  sg_cdf <- function(t, b = .1, eta = 3) (1 - exp(-b*t)) * exp(-eta * exp(-b*t))
+  
+  b = .3
+  eta = 10
+  m <- sg_max(.3, 10.0)
+  t1 <- - 1 / b * (log(m) - log(1 + eta) - log(b))
+  auc <- m * t1 + (exp(-t1*b)) * (1 + eta)
+  p1 <- m * t1 / auc
+  
+  t <- seq(0, 40, .01)
+  
+  tab <- data.frame(t = t, 
+                    density = sg_pdf(t, .3, 10), 
+                    g = ifelse(dexp(x = t, rate = .3) * (1 + 10) < m,
+                    dexp(x = t, rate = .3) * (1 + 10), m), 
+                    box = sg_max(.3, 10.0)
+                    )
+  
+  tab$box[1] <- 0.0
+  tab$box[length(tab$box)] <- 0.0
+  
+  n <- length(t)
+  sample.x <- sapply(1:n, function(xx){
+    
+    part <- base::sample(x = 1:2, size = 1, replace = TRUE, prob = c(p1, 1 - p1))
+    res <- ifelse(part==1, runif(n = 1, min = 0, max = t1), t1 + rexp(n = 1, rate = b))
+      
+  })
+  sample.y <- sapply(sample.x, function(xx){
+    
+    ifelse(xx <= t1, 
+           runif(n = 1, min = 0, max = m),
+           runif(n = 1, min = 0, max = (1 + eta) * dexp(x = xx, rate = b))
+           )
+    
+  })
+  
+  accept <- sample.y <= sg_pdf(sample.x, .3, 10)
+  
+  p1 <- ggplot(aes(x = t, y = density), data = tab) + 
+    geom_area(fill = "grey") + 
+    theme_classic() + 
+    geom_point(aes(x = sample.x, y = sample.y), colour = ifelse(accept, "black", "grey")) + 
+    theme(legend.position = "none") + 
+    geom_line(aes(y = g), linetype = 2) +
+    annotate("text", x = 35, y = .08, label = paste0("acc = ", round(mean(accept)*100, 2), "%")) + 
+    ylim(0, sg_max(.3, 10.0))
+  
+  t <- sample.x[accept]
+  p2 <- ggplot(aes(x = t), data = data.frame(t = t)) + 
+    theme_classic() + 
+    geom_histogram(aes(y = ..density..), binwidth = 1) +
+    xlim(0, 40) + 
+    geom_line(aes(y = sg_pdf(t, .3, 10)))
+  
+  multiplot(p1, p2, cols = 2)
+  
+```
+    
+### Kolmogorov Smirnov test
+
+It's straightforward to test whether we sample from correct distributions by comparing empirical cumulative distribution function with exact one. 
+
+```{r, echo = FALSE, include=FALSE, fig.width=6, fig.height=4}
+
+  Rcpp::sourceCpp('sgomp.cpp')
+
+```
+
+
+```{r, echo = FALSE , fig.width=12, fig.height=4, comment = ""}
+
+  set.seed(2014)
+  b = .3
+  eta = 10.0
+  n = 1e5
+  
+  s <- rsgomp(n = n, b = b, eta = eta)
+  ks.test(s, function(t) sapply(t, function(xx) psgomp(xx, b = b, eta = eta)))  
+  
+```
+
+Perfect! Sampled data distribution is indistinguishable from theoretical density. We can also inspect sampling results visually:
+
+```{r, echo = FALSE , fig.width=12, fig.height=5, comment = ""}
+
+  
+  b = .3
+  eta = 10.0
+  n = 1e4
+  
+  s <- rsgomp(n = n, b = b, eta = eta)
+  par(mfrow = c(1, 2))
+  
+  x <- seq(0.0, 40, .01)
+  hist(s, breaks = 50, freq = FALSE)
+  lines(x, sapply(x, function(xx) dsgomp(xx, b, eta)))
+
+  
+  plot(ecdf(s), xlim = c(0, 40))
+  lines(x, sapply(x, function(xx) psgomp(xx, b, eta)), lty = "dashed")
+  
+  par(mfrow = c(1, 1))
+  
+  s <- system.time(rsgomp(n = 1e6, b = b, eta = eta))
+
+  
+```
+
+## Summary
+
+We created from scratch new sampler for shifted Gompertz distribution :) and it's fairly efficient: for one milion of sampled values it takes latter algorithm only `r s[1]` of a second. 
+
+In the next post we will build Hierarchical Bayesian model of diffusion of innovation using shifted Gompertz distribution which we will later use to model app installations of one of the more popular Android apps!
+ 
+Code for this post can be found here:
+<https://github.com/jakubglinka/posts/tree/master/diffusion_part1>
+
+[^1]: Bauckhage, Christian; Kersting, Kristian (2014). "Strong Regularities in Growth and Decline of Popularity of Social Media Services"

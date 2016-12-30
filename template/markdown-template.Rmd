@@ -1,0 +1,57 @@
+---
+layout: post
+title: "Markdown Template of post"
+subtitle: This was added manualy
+bigimg: /img/math.jpg
+output:
+  html_document:
+    toc: no
+  md_document:
+    pandoc_args: --latexmathml
+    variant: markdown_github+tex_math_dollars+autolink_bare_uris+ascii_identifiers
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+post.title <- "markdown-template"
+post.date <- Sys.Date()
+fig.path <- paste0("{{ site.url }}/img/", post.date, "-", post.title, "-")
+knitr::opts_chunk$set(fig.path=fig.path)
+```
+
+## GitHub Documents
+
+This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+
+## Including Code
+
+You can include R code in the document as follows:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Including Formulas
+
+$$ \sum_{i = 1}^n \frac{1}{i} = \infty $$
+
+Obviously since $\int_{\mathbb{R}} \frac{1}{x} dx = + \infty$ as in [^1]
+
+## Including code
+
+    if (a > 3) {
+      moveShip(5 * gravity, DOWN);
+    }
+
+
+[^1]: Abramovitz and Steingun
