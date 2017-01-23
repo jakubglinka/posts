@@ -4,8 +4,18 @@ library(knitr)
 # Get the filename given as an argument in the shell.
 args = commandArgs(TRUE)
 path_to_file = args[1]
+date = args[2]
 filename = strsplit(path_to_file, "/")[[1]]
-filename = filename[length(filename)]
+len <- length(filename)
+
+if (len == 1) {
+  file_dir = ""
+} else {
+  file_dir = paste0(filename[-len], collapse = "/")
+}
+setwd(file_dir)
+
+filename = filename[len]
 
 # Check that it's a .Rmd file.
 if(!grepl(".Rmd", filename)) {
@@ -13,20 +23,20 @@ if(!grepl(".Rmd", filename)) {
 }
 
 # Knit and place in _posts.
-dir = paste0("../jakubglinka.github.io/_posts/", Sys.Date(), "-")
+dir = paste0("~/Projects/Blog/jakubglinka.github.io/_posts/", date, "-")
 output = paste0(dir, sub('.Rmd', '.md', filename))
-knit(path_to_file, output)
+knit(filename, output)
 
 # Copy .png files to the images directory.
 fromdir = "{{ site.url }}/img"
-todir = "../jakubglinka.github.io/img"
+todir = "~/Projects/Blog/jakubglinka.github.io/img"
 
 pics = list.files(fromdir, ".png")
 pics = sapply(pics, function(x) paste(fromdir, x, sep="/"))
 file.copy(pics, todir, overwrite = TRUE)
 
 # clean
-unlink("./{{ site.url }}", recursive = TRUE)
+# unlink("./{{ site.url }}", recursive = TRUE)
 
 #
 #setwd("../jakubglinka.github.io/")

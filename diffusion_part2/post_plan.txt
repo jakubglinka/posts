@@ -1,0 +1,9 @@
+Key points:
+
+ - foreword with explaining data by diffusion curves with just two parameters
+ - questions that we are gonna answer - speed of adoption, appeal of innovation total number of users
+ - two step querying of google trends data
+ - individual level model
+ - based only on shares - we are interested in appeal and speed of adoption
+ - bayesian shrinkage with arrows
+ - final results

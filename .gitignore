@@ -7,3 +7,5 @@
 *.jpg
 *.png
 *.html
+*.rds
+.Rapp.history

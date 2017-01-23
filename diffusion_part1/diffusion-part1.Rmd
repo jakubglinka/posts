@@ -16,7 +16,7 @@ tags: R
 
   knitr::opts_chunk$set(echo = TRUE)
   post.title <- "diffusion-part1"
-  post.date <- Sys.Date()
+  post.date <- "2016-12-30"
   fig.path <- paste0("{{ site.url }}/img/", post.date, "-", post.title, "-")
   knitr::opts_chunk$set(fig.path=fig.path)
   suppressPackageStartupMessages(library(ggplot2))
@@ -288,8 +288,6 @@ Perfect! Sampled data distribution is indistinguishable from theoretical density
 
 We created from scratch new sampler for shifted Gompertz distribution :) and it's fairly efficient: for one milion of sampled values it takes latter algorithm only `r s[1]` of a second. 
 
-In the next post we will build Hierarchical Bayesian model of diffusion of innovation using shifted Gompertz distribution which we will later use to model app installations of one of the more popular Android apps!
- 
 Code for this post can be found here:
 <https://github.com/jakubglinka/posts/tree/master/diffusion_part1>
 
