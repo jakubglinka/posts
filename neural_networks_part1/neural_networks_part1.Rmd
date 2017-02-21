@@ -1,0 +1,436 @@
+---
+layout: post
+title: "Training Neural Networks with MXNet"
+subtitle:
+bigimg: /img/math.jpg
+output:
+  html_document:
+    fig_width: 9
+  md_document:
+    pandoc_args: --latexmathml
+    variant: markdown_github+tex_math_dollars+autolink_bare_uris+ascii_identifiers
+tags: R
+---
+
+```{r setup, include=FALSE}
+
+  # required packages
+  suppressPackageStartupMessages(library(ggplot2))
+  library(tidyverse)
+  library(lubridate)
+  library(data.table)
+  suppressPackageStartupMessages(library(rstan))
+  library(mxnet)
+  library(mlbench)
+  require(gganimate)
+
+  source("../files/mult_ggplot.R")
+
+  
+```
+
+
+## Multilayer perceptron
+
+Multilayer perceptron (**MLP**) is the simplest feed-forward neural network. It mitigates the constraints of original perceptron that was able to learn only linearly separable patterns from the data. It achieves this by introducing at least one hidden layer in order to learn representation of the data that would enable linear separation.
+
+<img src="{{ site.url }}/img/mlp_arch.png" style=""/>
+
+In the first layer MLP apply linear transformations to the data point $x$:
+
+$$f_j(x) = w_j ^\top x + b_j \ \ \mathrm{for} \ \ j = 1,..,J $$
+the number of the transformations is the number of hidden nodes in the first hidden layer. 
+
+Next it applies non-linear transformation of outputs using so called *activation* function. Using linear function as a activation function would defeat the purpose of MLP as composition of linear transformations is still linear transformation.
+
+The most often used activation function is so called **rectifier**:
+
+$$ \phi(x) = \max(0, x)$$
+
+Finally the outputs of activation function are again combined using linear transformation:
+
+$$ h_k(x) = \sum_j \phi(f_j(x)) * v_j^k + c_k $$
+At this point one can either repeat activation step and extend network with next activation layer or apply final transformation of the outputs to fit the algorithm objective. In case of classification problems most often used transformation is *softmax* function:
+
+$$ \phi_k(h_1,...,h_K) = \frac{\exp(h_k)}{\sum_s \exp(h_s)}$$
+
+which maps real valued vector to a vector of probabilities.
+
+In case of classification problems the most often used loss function is *cross-entropy* between class label $y \in \{1, ..., K\}$ and probability returned by *softmax* function
+
+$$ L(\phi_k, y)  = -\sum_{k = 1}^K \mathbb{1}_{\{y = k\}} \log(\phi_k)$$
+
+which is averaged over all training observations.
+
+### Universal Approximation Theorem
+
+According to the theorem first proved by George Cybenko for sigmoid activation function: *"feed-forward network with a single hidden layer containing a finite number of neurons (i.e., a multilayer perceptron), can approximate continuous functions on compact subsets of $\mathbb{R}^n$, under mild assumptions on the activation function."*
+
+Lets put **mlp** to the test then. For this purpose I will use *sprials* dataset from **mlbench** package.
+
+```{r, dpi = 90, fig.height=5, fig.width=9, eval=TRUE, echo=FALSE}
+
+  set.seed(2015)
+
+  ############ sprials dataset ############
+  # --------------------------------------->
+
+  s <- sample(x = c("train", "test"), 
+              size = 1000, 
+              prob = c(.8,.2),
+              replace = TRUE)
+  
+  dta <- mlbench.spirals(n = 1000, cycles = 1.2, sd = .03)
+  dta <- cbind(dta[["x"]], as.integer(dta[["classes"]]) - 1)
+  colnames(dta) <- c("x","y","label")
+  
+  ######### train, validate, test ##########
+  # --------------------------------------->
+
+  dta.train <- dta[s == "train",]
+  dta.test <- dta[s == "test",]
+
+
+
+  dta.plot <- data.frame(
+    x = dta[, 1], 
+    y = dta[, 2], 
+    label = as.factor(dta[, 3]),
+    sample = factor(s, levels = c("train", "test")))
+
+  ggplot(aes(x = x, y = y), data = dta.plot) + 
+    geom_point(aes(colour = label), size = 3) +
+    geom_point(size = 3, shape = 1) + 
+    theme_classic() + 
+    ggtitle("Spirals dataset N = 1000")
+
+
+```
+
+
+##  MXNet
+
+MXNet is an open-source deep learning framework that allows you to define, train, and deploy deep neural networks on a wide array of devices, from cloud infrastructure to mobile devices and it allows to mix symbolic and imperative programming flavors. For example custom loss functions and accuracy measures.
+
+Read more: [http://mxnet.io](http://mxnet.io)
+
+### Network configuration
+
+MXNet package expose so called symbolic API for R users. Its purpose is to create user friendly way of building neural networks abstracting out computational details to the MXNet specialized engine.
+
+Most important symbols:
+
+ - **mx.symbol.Variable**: defines variables (input data, labels, ...)
+ - **mx.symbol.FullyConnected**: affine transformation of input tensor
+ - **mx.symbol.Activation**: places activation function which is applied to all fields of input tensor
+  - **mx.symbol.Output**: defines final transformation of data and loss function.
+
+Below is the example of code that configures perceptron with one hidden layer.  
+
+
+```{r, echo=TRUE, comment=""}
+
+  ########### Network configuration ########
+  # --------------------------------------->
+ 
+  # variables
+  act <- mx.symbol.Variable("data")
+  
+  # affine transformation
+  fc <- mx.symbol.FullyConnected(act, num.hidden = 10)
+  
+  # non-linear activation 
+  act <- mx.symbol.Activation(data = fc, act_type = "relu")
+
+  # affine transformation
+  fc <- mx.symbol.FullyConnected(act, num.hidden = 2)
+  
+  # softmax output and cross-
+  mlp <- mx.symbol.SoftmaxOutput(fc)
+
+```
+
+### Preparing data
+
+
+```{r, include=TRUE}
+
+  set.seed(2015)
+
+  ############ sprials dataset ############
+  # --------------------------------------->
+
+  s <- sample(x = c("train", "test"), 
+              size = 1000, 
+              prob = c(.8,.2),
+              replace = TRUE)
+  
+  dta <- mlbench.spirals(n = 1000, cycles = 1.2, sd = .03)
+  dta <- cbind(dta[["x"]], as.integer(dta[["classes"]]) - 1)
+  colnames(dta) <- c("x","y","label")
+  
+  ######### train, validate, test ##########
+  # --------------------------------------->
+
+  dta.train <- dta[s == "train",]
+  dta.test <- dta[s == "test",]
+
+  
+```
+
+### Network training
+
+Feed-forward networks are trained using iterative gradient descent type of algorithm. Additionally during single forward pass only subset of the data is used called *batch*. Process is repeated until all training examples are used. This is called an *epoch*.
+After every epoch MXNet returns training accuracy:
+
+```{r, eval=TRUE, include=TRUE}
+
+  ############# basic training #############
+  # --------------------------------------->
+
+  mx.set.seed(2014)
+  model <- mx.model.FeedForward.create(
+            symbol = mlp,
+            X = dta.train[, c("x", "y")], 
+            y = dta.train[, c("label")],
+            num.round = 5,
+            array.layout = "rowmajor",
+            learning.rate = 1,
+            eval.metric = mx.metric.accuracy)
+    
+
+```
+
+#### Custom call-back
+
+In order to stop process of training when the progress in accuracy is below certain level of tolerance we need to add custom callback to the feed forward procedure. It is called after every *epoch* to check if algorithm progresses. If not it will terminate optimization procedure and return results.
+
+```{r, eval = TRUE}
+
+  ######## custom stopping criterion #######
+  # --------------------------------------->
+
+  mx.callback.train.stop <- function(tol = 1e-3, 
+                                     mean.n = 1e2, 
+                                     period = 100, 
+                                     min.iter = 100
+                                     ) {
+    function(iteration, nbatch, env, verbose = TRUE) {
+      if (nbatch == 0 & !is.null(env$metric)) {
+          continue <- TRUE
+          acc.train <- env$metric$get(env$train.metric)$value
+          if (is.null(env$acc.log)) {
+            env$acc.log <- acc.train
+          } else {
+            if ((abs(acc.train - mean(tail(env$acc.log, mean.n))) < tol &
+                abs(acc.train - max(env$acc.log)) < tol &
+                iteration > min.iter) | 
+                acc.train == 1) {
+              cat("Training finished with final accuracy: ", 
+                  round(acc.train * 100, 2), " %\n", sep = "")
+              continue <- FALSE 
+            }
+            env$acc.log <- c(env$acc.log, acc.train)
+          }
+      }
+      if (iteration %% period == 0) {
+        cat("[", iteration,"]"," training accuracy: ", 
+            round(acc.train * 100, 2), " %\n", sep = "") 
+      }
+      return(continue)
+      }
+   }
+
+  ###### training with custom stopping #####
+  # --------------------------------------->
+
+  mx.set.seed(2014)
+  model <- mx.model.FeedForward.create(
+          symbol = mlp,
+          X = dta.train[, c("x", "y")], 
+          y = dta.train[, c("label")],
+          num.round = 2000,
+          array.layout = "rowmajor",
+          learning.rate = 1,
+          epoch.end.callback = mx.callback.train.stop(),
+          eval.metric = mx.metric.accuracy,
+          verbose = FALSE
+          )
+  
+```
+
+## Results
+
+### Learning curve
+
+```{r, eval=TRUE, cache=FALSE, include=FALSE, echo=FALSE}
+
+  grid <- 2:10
+  res <- lapply(grid, function(xx) {
+    
+    act <- mx.symbol.Variable("data")
+    fc <- mx.symbol.FullyConnected(act, num.hidden = xx)
+    act <- mx.symbol.Activation(data = fc, act_type = "relu")
+    fc <- mx.symbol.FullyConnected(act, num.hidden = 2)
+    mlp <- mx.symbol.SoftmaxOutput(fc)
+      
+    mx.set.seed(2014)
+    model <- mx.model.FeedForward.create(
+      symbol = mlp,
+      X = dta.train[, c("x", "y")], 
+      y = dta.train[, c("label")],
+      num.round = 2000,
+      array.layout = "rowmajor",
+      learning.rate = 1,
+      epoch.end.callback = mx.callback.train.stop(),
+      eval.metric = mx.metric.accuracy,
+      verbose = FALSE
+    )
+    
+    pred.test <- apply(
+      predict(
+        model, 
+        X = dta.test[, c("x", "y")], 
+        array.layout = "rowmajor"
+        ), 2, which.max)
+    
+    test.acc <- e1071::classAgreement(table(pred.test, dta.test[, "label"]))[[1]]
+    
+    pred.train <- apply(
+      predict(
+        model, 
+        X = dta.train[, c("x", "y")], 
+        array.layout = "rowmajor"
+        ), 2, which.max)
+    
+    train.acc <- e1071::classAgreement(table(pred.train, dta.train[, "label"]))[[1]]
+    
+    logp <- t(log(predict(
+        model, 
+        X = dta.test[, c("x", "y")], 
+        array.layout = "rowmajor"
+        )))
+    loss <- - mean(logp[, 1] * (dta.test[, "label"] == 0) + 
+                   logp[, 2] * (dta.test[, "label"] == 1))
+    
+    return(list(
+      train = train.acc, 
+      test = test.acc,
+      loss = loss,
+      model = model))
+    
+  })
+  
+```
+  
+```{r, eval=TRUE, fig.height=5, fig.width=9, dpi=90, include=TRUE, echo=FALSE}
+
+  tab <- res %>% 
+    lapply(function(xx) data.frame(xx[c("train", "test")])) %>%
+    do.call(rbind, .)
+  tab$hidden.nodes <- grid
+  
+  tab <- tab %>% melt(id.vars = c("hidden.nodes"), 
+                      measure.vars = c("train", "test"))
+  names(tab) <- c("hidden.nodes", "sample", "accuracy")
+  
+  ggplot(aes(x = hidden.nodes), data = tab) + 
+    geom_line(aes(y = accuracy, colour = sample), linetype = 2) + 
+    geom_point(aes(y = accuracy, colour = sample, shape = sample, size = 3)) + 
+    theme_classic() + 
+    scale_y_continuous(labels = function(xx) paste0(round(xx * 100, 1), "%")) +
+    ggtitle("Accuracy vs number of hidden nodes") + 
+    guides(size = FALSE) +
+    scale_size(range=c(0.8, 3))
+  
+  
+```
+
+
+
+
+### Evolution of decision boundary
+
+```{r, eval=TRUE, fig.height=5, fig.width=9, dpi=90, include=FALSE, echo=FALSE}
+  
+  
+  grid <- expand.grid(x = seq(-1.1, 1.1, by = 0.05),
+                      y = seq(-1.1, 1.1, by = 0.05))
+
+  dtas <- lapply(1:length(res), function(xx) {
+    
+    prob <- predict(res[[xx]]$model, 
+                    X = as.matrix(grid), 
+                    array.layout = "rowmajor")
+    prob <- t(prob)
+    pred_label <- apply(prob, 1, which.max) - 1 
+    
+    require(dplyr)
+    dta.plot <- bind_rows(data.frame(grid,
+                                      prob = prob[, 1],
+                                      cls="0",
+                                      stringsAsFactors = FALSE),
+                           data.frame(grid,
+                                      prob = prob[, 2],
+                                      cls="1",
+                                      stringsAsFactors = FALSE)
+    )
+    dta.plot$frame <- xx - 1
+    dta.plot
+  })
+  
+  dta.plot <- bind_rows(dtas)
+  
+  p <- ggplot(aes(frame = frame), data = dta.plot) +
+    geom_point(aes(x=x, y=y, col=cls, size = prob, frame = frame),
+               alpha = .7,
+               data = dta.plot[dta.plot$prob >= .5,]) + scale_size(range=c(0.8, 2)) + 
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 0,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 1,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 2,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 3,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 4,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 5,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 6,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 7,]) +
+    geom_contour(aes(x=x, y=y, z= as.numeric(prob > .5), group=cls, color=cls),
+                 bins=2, data = dta.plot[dta.plot$frame == 8,]) +
+    theme_classic() +
+    geom_point(aes(x=x, y=y, col=cls),
+               size=3,
+               data=data.frame(x=dta.train[,1], 
+                               y=dta.train[,2],
+                               frame = NA,
+                               cls = as.character(dta.train[, 3]))) +
+    geom_point(aes(x=x, y=y),
+               size=3, shape=1,
+               data=data.frame(x=dta.train[,1], 
+                               y=dta.train[,2],
+                               frame = NA,
+                               cls = as.character(dta.train[, 3]))) + 
+    ggtitle("Multilayer Perceptron decision boundary")
+  
+   
+  
+  animation::ani.options(interval=2)
+  gganimate(p, filename = "{{ site.url }}/img/mlp_evolution.gif", title_frame = FALSE)
+  
+  
+```
+
+<img src="{{ site.url }}/img/mlp_evolution.gif"/>
+
+----------------------------------------------------
+
+Code for this post can be found here:
+[https://github.com/jakubglinka/posts/tree/master/neural_networks_part1](https://github.com/jakubglinka/posts/tree/master/neural_networks_part1)
+
+

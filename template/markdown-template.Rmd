@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Markdown Template of post"
-subtitle: This was added manualy
+title: "Applying diffusion theory to Google Trends"
+subtitle: on example of Candy Crush Saga adoption
 bigimg: /img/math.jpg
 output:
   html_document:
@@ -9,15 +9,53 @@ output:
   md_document:
     pandoc_args: --latexmathml
     variant: markdown_github+tex_math_dollars+autolink_bare_uris+ascii_identifiers
+tags: R
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-post.title <- "markdown-template"
-post.date <- Sys.Date()
-fig.path <- paste0("{{ site.url }}/img/", post.date, "-", post.title, "-")
-knitr::opts_chunk$set(fig.path=fig.path)
+
+  # library(knitr)
+  # options(markdown.HTML.options = NULL)
+  # 
+  # # knitr options
+  # knitr::opts_chunk$set(echo = TRUE)
+  # post.title <- "markdown-template"
+  # post.date <- Sys.Date()
+  # fig.path <- paste0("{{ site.url }}/img/", post.title, "-")
+  # knitr::opts_chunk$set(fig.path=fig.path)
+  
 ```
+
+## Latex inline (must be in single line)
+
+where $b = 1$
+
+where $\sum_{i = 1}^n \frac{1}{i} = \infty$ and
+
+where $\int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x$ and
+
+where $S_t$ and
+
+where $s_t$ and
+
+where $e = e^{-\eta}$ and 
+
+where $\sqrt\pi$ and 
+
+where $\sqrt{\frac{1}{2}}$ and 
+
+## Latex equations
+
+This is an R Markdown format used for publishing markdo
+$$ b = 1 $$
+This is an R Markdown format used for publishing markdo
+$$ b = \frac{1}{2} $$
+This is an R Markdown format used for publishing markdo
+$$ \int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x $$
+This is an R Markdown format used for publishing markdo
+$$ (X, U) \sim \mathbb{U}\{(x, u) : 0 < u < f(x)\} $$
+
+
 
 ## GitHub Documents
 
@@ -43,11 +81,17 @@ Note that the `echo = FALSE` parameter was added to the code chunk to prevent pr
 
 ## Including Formulas
 
-$$ \sum_{i = 1}^n \frac{1}{i} = \infty $$
+$$ = \frac{1}{M(b, \eta)} \left\{ 1_{[0, t^*]} * m(b, \eta) + 1_{(t^*, +\infty)} * (1 + \eta) * b \exp(-bt) \right\} $$
+
+$$ = \frac{m(b,\eta) t^*}{M(b,\eta)} * \frac{1}{t^*}1_{[0, t^*]}  + \frac{m(b,\eta) e^{-bt^*}(1+\eta)}{M(b,\eta)} * 1_{(t^*, +\infty)} b \exp(-b(t - t^*))$$
+
+$$ = p_1(b,\eta) * \mathbb{U}[0, t^*] + p_2(b, \eta) * \mathrm{Exp}(b)|_{t^*}^{\infty} $$
+
 
 Obviously since $\int_{\mathbb{R}} \frac{1}{x} dx = + \infty$ as in [^1]
 
 ## Including code
+
 
     if (a > 3) {
       moveShip(5 * gravity, DOWN);

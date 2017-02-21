@@ -1,0 +1,61 @@
+\documentclass{article}
+
+\usepackage{tikz}
+\begin{document}
+\pagestyle{empty}
+
+\def\layersep{4.5cm}
+
+\begin{tikzpicture}[shorten >=1pt,->,draw=black!50, node distance=\layersep, semithick]
+    \tikzstyle{every pin edge}=[<-,shorten <=1pt]
+    \tikzstyle{neuron}=[circle,fill=black!25,draw,minimum size=17pt,inner sep=0pt]
+    \tikzstyle{input neuron}=[neuron, fill=green!50];
+    \tikzstyle{output neuron}=[neuron, fill=red!50];
+    \tikzstyle{hidden neuron}=[neuron, fill=blue!50];
+    \tikzstyle{final neuron}=[neuron];
+    \tikzstyle{annot} = [text width=8em, text centered]
+
+    % Draw the input layer nodes
+    \foreach \name / \y in {1}
+    % This is the same as writing \foreach \name / \y in {1/1,2/2,3/3,4/4}
+        \node[input neuron, pin=left: x ] (I-\name) at (0,-\y-1.5) {};
+
+    % Draw the hidden layer nodes
+    \foreach \name / \y in {1,...,5}
+        \path[yshift=0.5cm]
+            node[hidden neuron] (H-\name) at (\layersep,-\y cm) {$\phi$};
+
+    % Draw the output layer nodes
+    \foreach \name / \y in {1,2}
+    \node[output neuron, right of=H-3] (O-\y) at (\layersep, -\y-1) {h};
+
+    % Draw the output node
+    \node[final neuron, right of=H-2] (F-1) at (1.5 * \layersep,-2.5) {$\Phi$};
+
+    % Connect every node in the input layer with every node in the
+    % hidden layer.
+    \foreach \source in {1}
+        \foreach \dest in {1,...,5}
+            \path (I-\source) edge (H-\dest);
+
+    % Connect every node in the hidden layer with the output layer
+    \foreach \output in {1,2}
+        \foreach \source in {1,...,5}
+            \path (H-\source) edge (O-\output);
+
+    % Connect output layer
+    \foreach \output in {1,2}
+            \path (O-\output) edge (F-1);
+    
+
+    % Annotate the layers
+    \node[annot, above of=H-1, node distance=2cm, text width=16em] {MLP Architecture};
+    \node[annot,above of=H-1, node distance=1cm] (hl) {Hidden layer};
+    \node[annot,left of=hl] {Input layer};
+    \node[annot,right of=hl] (ol) {Output layer};
+    \node[annot,left of=H-1, node distance=3cm] {$x \to x^\top w_j + b_j$ };
+    \node[annot,right of=H-1, node distance=3cm] {$ \sum_j \phi_j * v_j^k + c_k $};
+    \node[annot,above of=F-1, node distance=1cm] {$\Phi(h_1,...,h_K)$};
+\end{tikzpicture}
+% End of code
+\end{document}

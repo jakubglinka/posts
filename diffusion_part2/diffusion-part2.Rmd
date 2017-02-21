@@ -14,15 +14,6 @@ tags: R
 
 ```{r setup, include=FALSE}
 
-  library(knitr)
-
-  # knitr options
-  knitr::opts_chunk$set(echo = TRUE)
-  post.title <- "diffusion-part2"
-  post.date <- Sys.Date()
-  fig.path <- paste0("{{ site.url }}/img/", post.date, "-", post.title, "-")
-  knitr::opts_chunk$set(fig.path=fig.path)
-  
   # required packages
   suppressPackageStartupMessages(library(ggplot2))
   library(tidyverse)
@@ -52,9 +43,10 @@ tags: R
   
   source("./diffusion_SG_funcs.R")
   
+  
 ```
 
-Since I was recently researching different diffussion models I thought it would be nice to see whether they are applicable to popularity of information researched online.
+Since I was recently researching different diffusion models I thought it would be nice to see whether they are applicable to popularity of information researched online.
 
 I could choose any topic but I instantly remembered time when Candy Crash Saga was very popular in Poland. I wondered whether it was similar in other countries.
 
@@ -62,7 +54,7 @@ For those not familiar with the topic. Candy Crush Saga is a mobile game based o
 
 <img src="{{ site.url }}/img/Candy_Crush_logo.png" style="width: 200px;"/>
 
-<https://en.wikipedia.org/wiki/Candy_Crush_Saga>
+[https://en.wikipedia.org/wiki/Candy_Crush_Saga](https://en.wikipedia.org/wiki/Candy_Crush_Saga)
 
 ## Getting data from Google Trends
 
@@ -97,7 +89,7 @@ I must admit overall this was more challenging than expected but as long as you 
 
 Below I plotted randomly selected countries to see what different popularity patterns we can observe:
 
-```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=8, eval= TRUE}
+```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=6, eval= TRUE}
 
   dta.plot <- ccs[country %in% c("US", "FR", "NL", "CA")]
   ggplot(aes(x = week, y = popularity), data = dta.plot) + 
@@ -141,8 +133,8 @@ Below is my Stan implementation of this model:
 ```{stan output.var="ex1", eval = FALSE}
 
 data {
-  int<lower = 2> T;                         // number of observed periods
-  real<lower = 0> S[T];                     // share of users adoptions
+  int<lower=2> T;                         // number of observed periods
+  real<lower=0> S[T];                     // share of users adoptions
 }
 
 parameters {
@@ -172,8 +164,9 @@ generated quantities {
 }
 ```
 
-```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=8,eval=TRUE,include=FALSE, cache=TRUE}
+```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=6,eval=TRUE,include=FALSE, cache=TRUE}
 
+set.seed(2014)
 res <- lapply(countries, function(xx) {
   dta <- ccs[country == xx,]
   sg_diffusion(date = dta$week, x = dta$popularity)
@@ -187,7 +180,7 @@ names(res) <- countries
 Below I plotted all the countries with respect to the $p$ and $q$. 
 Size of the label is proportional to the log of keyword popularity $m$.
 
-```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=8,eval=TRUE}
+```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=6,eval=TRUE}
 
   # plot p and q plus posteriors
   # annotate m as point size or just text
@@ -206,6 +199,7 @@ Size of the label is proportional to the log of keyword popularity $m$.
   tmp$label <- "late majority"
   tmp[tmp$q > .07, ]$label <- "late boom"
   tmp[tmp$p > .001, ]$label <- "early adopters"
+  tmp <- tmp[!(tmp$country %in% c("ZA","PA","VE","GR", "RO")), ]
   
   ggplot(aes(x = p, y = q), data = tmp) + 
     theme_classic() +
@@ -222,7 +216,7 @@ Red line is theoretical diffusion curve of fitted SG model. I plotted additional
 
 ### Early Adopters
 
-```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=8,eval=TRUE}
+```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=6,eval=TRUE}
 
 plot(res[["SE"]], "Candy Crush Saga searches: SE")
 
@@ -232,19 +226,19 @@ Sweden had highest $p$ parameter which means that it adopted CCS fastest along w
 
 ### Late boom
 
-```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=8,eval=TRUE}
+```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=6,eval=TRUE}
 
 plot(res[["TW"]], "Candy Crush Saga searches: TW")
 
 ```
 
 Taiwan had very steep adoption rate which according to this article exceeded makers expectations:  
-<http://www.chinapost.com.tw/taiwan/business/2013/09/17/389125/Candy-Crushs.htm>  
+[www.chinapost.com.tw](http://www.chinapost.com.tw/taiwan/business/2013/09/17/389125/Candy-Crushs.htm)
 Similar reports can be found for Hong Kong.
 
 ### Late Majority
 
-```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=8,eval=TRUE}
+```{r, echo=FALSE, dpi=120, fig.height=4, fig.width=6,eval=TRUE}
 
 plot(res[["PL"]], "Candy Crush Saga searches: PL")
 
@@ -257,7 +251,8 @@ So in the end I was surprised to see that Poland was rather late adopter of CCS 
 In this post we analysed Google Trends data using diffusion theory which summarizes nicely popularity evolution of Candy Crush Saga searches between 14 November 2012 and 20 October 2014 and lets us to summarize differences across the countries.
 
 Code for this post can be found here:
-<https://github.com/jakubglinka/posts/tree/master/diffusion_part2>
+[github](https://github.com/jakubglinka/posts/tree/master/diffusion_part2)
+
 
 [^1]: The Impact of Heterogeneity and Ill-Conditioning on Diffusion Model Parameter Estimates Albert C. Bemmaor, Janghyuk Lee
 

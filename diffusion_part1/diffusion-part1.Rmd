@@ -78,8 +78,8 @@ $$ (X, U) \sim \mathbb{U}\{(x, u) : 0 < u < f(x)\} \ \ \ \ \blacksquare $$
 Direct corollary introduces convenient way of simulating from target distribution:
 
 **Accept-Reject algorithm.**  
-*Let $X \sim f(x)$ and let $g(x)$ be a density function that satisfies $f(x) \leq M g(x)$ for some constant $M \geq 1$ and $h:=Mg$. 
-Then, to simulate  $X \sim f$ it is sufficient to generate pair*
+Let $X \sim f(x)$ and let $g(x)$ be a density function that satisfies $f(x) \leq M g(x)$ for some constant $M \geq 1$ and $h:=Mg$. 
+Then, to simulate  $X \sim f$ it is sufficient to generate pair
 
 $$ Y \sim g \ \ \ \ and \ \ \ \  (U|Y = y) \sim \mathbb{U}[0, h(y)], $$
 
@@ -289,6 +289,6 @@ Perfect! Sampled data distribution is indistinguishable from theoretical density
 We created from scratch new sampler for shifted Gompertz distribution :) and it's fairly efficient: for one milion of sampled values it takes latter algorithm only `r s[1]` of a second. 
 
 Code for this post can be found here:
-<https://github.com/jakubglinka/posts/tree/master/diffusion_part1>
+[https://github.com/jakubglinka/posts/tree/master/diffusion_part1](https://github.com/jakubglinka/posts/tree/master/diffusion_part1)
 
 [^1]: Bauckhage, Christian; Kersting, Kristian (2014). "Strong Regularities in Growth and Decline of Popularity of Social Media Services"
