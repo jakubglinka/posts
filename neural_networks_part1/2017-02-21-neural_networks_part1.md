@@ -87,7 +87,6 @@ Below is the example of code that configures perceptron with one hidden layer.
 
 ```r
   ########### Network configuration ########
-  # --------------------------------------->
  
   # variables
   act <- mx.symbol.Variable("data")
@@ -113,7 +112,6 @@ Below is the example of code that configures perceptron with one hidden layer.
   set.seed(2015)
 
   ############ sprials dataset ############
-  # --------------------------------------->
 
   s <- sample(x = c("train", "test"), 
               size = 1000, 
@@ -125,7 +123,6 @@ Below is the example of code that configures perceptron with one hidden layer.
   colnames(dta) <- c("x","y","label")
   
   ######### train, validate, test ##########
-  # --------------------------------------->
 
   dta.train <- dta[s == "train",]
   dta.test <- dta[s == "test",]
@@ -139,7 +136,6 @@ After every epoch MXNet returns training accuracy:
 
 ```r
   ############# basic training #############
-  # --------------------------------------->
 
   mx.set.seed(2014)
   model <- mx.model.FeedForward.create(
@@ -168,7 +164,6 @@ In order to stop process of training when the progress in accuracy is below cert
 
 ```r
   ######## custom stopping criterion #######
-  # --------------------------------------->
 
   mx.callback.train.stop <- function(tol = 1e-3, 
                                      mean.n = 1e2, 
@@ -202,7 +197,6 @@ In order to stop process of training when the progress in accuracy is below cert
    }
 
   ###### training with custom stopping #####
-  # --------------------------------------->
 
   mx.set.seed(2014)
   model <- mx.model.FeedForward.create(
@@ -246,6 +240,5 @@ In order to stop process of training when the progress in accuracy is below cert
 
 Code for this post can be found here:
 [https://github.com/jakubglinka/posts/tree/master/neural_networks_part1](https://github.com/jakubglinka/posts/tree/master/neural_networks_part1)
-
 
 

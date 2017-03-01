@@ -5,7 +5,7 @@ setwd("/Users/qba/Projects/Blog/posts")
 
 # Get the filename given as an argument in the shell.
 args = commandArgs(TRUE)
-args = c("./neural_networks_part1/neural_networks_part1.Rmd", "2017-02-21")
+# args = c("./neural_networks_part1/neural_networks_part1.Rmd", "2017-02-21")
 path_to_file = args[1]
 date = args[2]
 filename = strsplit(path_to_file, "/")[[1]]
@@ -136,6 +136,8 @@ src <- lapply(src, function(line) {
   line <- stringi::stri_replace_all_fixed(line, "&gt;", ">")
   line <- stringi::stri_replace_all_fixed(line, "&lt;", "<")
   line <- ifelse(substr(line, 1, 10) == "</lower=0>", "", line)
+  line <- stringi::stri_replace_all_fixed(line, "</chr>", "")
+  line <- stringi::stri_replace_all_fixed(line, "</fctr>", "")
   
   line
 })

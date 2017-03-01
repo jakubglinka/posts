@@ -1,0 +1,330 @@
+---
+title: "Sentiment Analysis of The Lord Of The Rings with tidytext"
+layout: post
+output:
+  html_document:
+    fig_width: 9
+  md_document:
+    pandoc_args: --latexmathml
+    variant: markdown_github+tex_math_dollars+autolink_bare_uris+ascii_identifiers
+subtitle: null
+tags: R
+bigimg: /img/math.jpg
+---
+
+```{r setup, include=FALSE}
+
+# required packages
+library(tidyverse)
+library(tidytext)
+library(stringi)
+library(ggplot2)
+
+```
+
+You got me thinking about Watson and its unprecedented flexibility in analyzing different data sources (at least according to IBM). So how difficult it would be to analyse sentiment of one of my favorites books using R? Pretty easy actually - all thanks to new package **tidytext** by Julia Silge and David Robinson...
+
+## The tidy text format
+
+Tidy text format is defined as a table with one-term-per-row. In short it is just tidy textual data which enables to use **tidyverse** tools to clean and transform data. More about conceptual underpinnings creation of tidytext package can be found in the online book:
+
+[http://tidytextmining.com/tidytext.html](http://tidytextmining.com/tidytext.html)
+
+## Parsing data to the tibble format
+
+I parsed one of the websites that offers LOTR trilogy online. After some pretty basic operations on html source I extracted full text along with chapter names and book parts and book titles:
+
+```{r parse books, echo = FALSE, fig.height=5, fig.width = 9, dpi = 90}
+
+source("utils.R")
+
+# Parsing Fellowship of the Ring
+
+lotr1 <- read_lines(
+  file = "../../data/LOTR/The Fellowship of the Ring.html") %>% 
+  as_data_frame %>%
+  filter(1:nrow(.) > 759)
+names(lotr1) <- c("text")
+
+lotr1 <- lotr1 %>% 
+  mutate(text = stri_replace_all_regex(text, "<p>|</p>|<i>|</i>|<b>|</b>", "")) %>%
+  mutate(text = stri_replace_all_regex(text, "&nbsp", " ")) %>%
+  mutate(text = stri_replace_all_regex(text, "&quot;", "")) %>%
+  mutate(text = stri_replace_all_regex(text, "&eacute;", "e")) %>%
+  mutate(text = stri_replace_all_regex(text, "&iacute;", "i")) %>%
+  mutate(text = stri_replace_all_regex(text, "&uacute;", "u")) %>%
+  mutate(text = stri_replace_all_regex(text, "&Eacute;", "E")) %>%
+  mutate(text = stri_replace_all_regex(text, "&Oacute;", "O")) %>%
+  mutate(text = stri_replace_all_regex(text, "&aacute;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "&oacute;", "o")) %>%
+  mutate(text = stri_replace_all_regex(text, "&auml;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "&euml;", "e")) %>%
+  mutate(text = stri_replace_all_regex(text, "&ucirc;", "u")) %>%
+  mutate(text = stri_replace_all_regex(text, "&acirc;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "‘|’|�|`", "'")) %>%
+  mutate(chapter = stri_extract_chapter(text)) %>%
+  filter(!stri_detect_regex(text, "<|>|/|\\[|\\{|\\)")) %>%
+  filter(!text == "") %>%
+  filter(!stri_detect_regex(text, "[^a-zA-Z1-9',\\.\\s:;'?!-]"))
+
+lotr1.contents <- lotr1 %>%
+  select(chapter) %>%
+  unique %>%
+  mutate(id = 1:length(chapter)) %>%
+  select(id, chapter) %>%
+  mutate(part = "") %>%
+  mutate(part = ifelse(id %in% 1:12, "Book I", part)) %>%
+  mutate(part = ifelse(id %in% 13:length(id), "Book II", part)) %>%
+  mutate(book = "1. Fellowship of the Ring") %>%
+  select(book, part, chapter) %>%
+  left_join(lotr1 %>% group_by(chapter) %>% summarise(lines = length(text)), by = "chapter")
+
+# lotr1.contents %>%
+#   select(book, part, chapter, lines) %>%
+#   unique %>%
+#   head
+
+lotr1 <- lotr1 %>% 
+  left_join(lotr1.contents, by = "chapter")
+
+# Parsing Two Towers
+
+lotr2 <- read_lines(
+  file = "../../data/LOTR/Two Towers.html") %>% 
+  as_data_frame %>%
+  filter(1:nrow(.) > 44)
+names(lotr2) <- c("text")
+
+lotr2 <- lotr2 %>% 
+  mutate(text = stri_replace_all_regex(text, "<p>|</p>|<i>|</i>|<b>|</b>", "")) %>%
+  mutate(text = stri_replace_all_regex(text, "&nbsp", " ")) %>%
+  mutate(text = stri_replace_all_regex(text, "&quot;", "")) %>%
+  mutate(text = stri_replace_all_regex(text, "&eacute;", "e")) %>%
+  mutate(text = stri_replace_all_regex(text, "&iacute;", "i")) %>%
+  mutate(text = stri_replace_all_regex(text, "&uacute;", "u")) %>%
+  mutate(text = stri_replace_all_regex(text, "&Eacute;", "E")) %>%
+  mutate(text = stri_replace_all_regex(text, "&Oacute;", "O")) %>%
+  mutate(text = stri_replace_all_regex(text, "&aacute;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "&oacute;", "o")) %>%
+  mutate(text = stri_replace_all_regex(text, "&auml;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "&euml;", "e")) %>%
+  mutate(text = stri_replace_all_regex(text, "&ucirc;", "u")) %>%
+  mutate(text = stri_replace_all_regex(text, "&acirc;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "‘|’|�|`", "'")) %>%
+  mutate(chapter = stri_extract_chapter(text)) %>%
+  filter(!stri_detect_regex(text, "<|>|/|\\[|\\{|\\)")) %>%
+  filter(!text == "") %>%
+  filter(!stri_detect_regex(text, "[^a-zA-Z1-9',\\.\\s:;'?!-]"))
+
+lotr2.contents <- lotr2 %>%
+  select(chapter) %>%
+  unique %>%
+  mutate(id = 1:length(chapter)) %>%
+  select(id, chapter) %>%
+  mutate(part = "") %>%
+  mutate(part = ifelse(id %in% 1:10, "Book III", part)) %>%
+  mutate(part = ifelse(id %in% 11:length(id), "Book IV", part)) %>%
+  mutate(book = "2. Two Towers") %>%
+  select(book, part, chapter) %>%
+  left_join(lotr2 %>% group_by(chapter) %>% summarise(lines = length(text)), by = "chapter")
+
+# lotr2.contents %>%
+#   select(book, part, chapter, lines) %>%
+#   unique %>%
+#   head
+
+lotr2 <- lotr2 %>% 
+  left_join(lotr2.contents, by = "chapter")
+
+# Parsing Return of The King
+
+lotr3 <- read_lines(
+  file = "../../data/LOTR/The Return of the King.html") %>% 
+  as_data_frame %>%
+  filter(1:nrow(.) > 47)
+names(lotr3) <- c("text")
+
+lotr3 <- lotr3 %>% 
+  mutate(text = stri_replace_all_regex(text, "<p>|</p>|<i>|</i>|<b>|</b>", "")) %>%
+  mutate(text = stri_replace_all_regex(text, "&nbsp", " ")) %>%
+  mutate(text = stri_replace_all_regex(text, "&quot;", "")) %>%
+  mutate(text = stri_replace_all_regex(text, "&eacute;", "e")) %>%
+  mutate(text = stri_replace_all_regex(text, "&iacute;", "i")) %>%
+  mutate(text = stri_replace_all_regex(text, "&uacute;", "u")) %>%
+  mutate(text = stri_replace_all_regex(text, "&Eacute;", "E")) %>%
+  mutate(text = stri_replace_all_regex(text, "&Oacute;", "O")) %>%
+  mutate(text = stri_replace_all_regex(text, "&aacute;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "&oacute;", "o")) %>%
+  mutate(text = stri_replace_all_regex(text, "&auml;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "&euml;", "e")) %>%
+  mutate(text = stri_replace_all_regex(text, "&ucirc;", "u")) %>%
+  mutate(text = stri_replace_all_regex(text, "&acirc;", "a")) %>%
+  mutate(text = stri_replace_all_regex(text, "‘|’|�|`", "'")) %>%
+  mutate(chapter = stri_extract_chapter(text)) %>%
+  filter(!stri_detect_regex(text, "<|>|/|\\[|\\{|\\)")) %>%
+  filter(!text == "") %>%
+  filter(!stri_detect_regex(text, "[^a-zA-Z1-9',\\.\\s:;'?!-]"))
+
+lotr3.contents <- lotr3 %>%
+  select(chapter) %>%
+  unique %>%
+  mutate(id = 1:length(chapter)) %>%
+  select(id, chapter) %>%
+  mutate(part = "") %>%
+  mutate(part = ifelse(id %in% 1:10, "Book V", part)) %>%
+  mutate(part = ifelse(id %in% 11:length(id), "Book VI", part)) %>%
+  mutate(book = "3. Return of the King") %>%
+  select(book, part, chapter) %>%
+  left_join(lotr3 %>% group_by(chapter) %>% summarise(lines = length(text)), by = "chapter")
+
+# lotr3.contents %>%
+#   select(book, part, chapter, lines) %>%
+#   unique %>%
+#   head
+
+lotr3 <- lotr3 %>% 
+  left_join(lotr3.contents, by = "chapter")
+
+lotr <- bind_rows(lotr1, lotr2, lotr3) %>%
+  mutate(chapter = factor(chapter, levels = unique(chapter)))
+# 
+# lotr %>% as.data.frame() %>%
+#   head
+
+lotr %>%
+  select(book, part, chapter, text) %>%
+  head
+
+
+```
+
+with field *text* simply containing lines of text from the books:
+
+```{r, echo = FALSE}
+  
+lotr$text %>%
+  sapply(function(xx) paste0(substr(xx, 1, 50), "...")) %>%
+  data_frame(text = .) %>%
+  head
+
+```
+
+
+<!-- ## Most differentiating words -->
+
+<!-- Let's see is there difference in words distribution across the books. -->
+<!-- We scan through all words in the three parts of the trylogy and present only top most significantly describing one (or two) of three books. I will use simple **prop.test** to order words with respect to the p-value... -->
+
+```{r, echo = FALSE, fig.height=5, fig.width=9, dpi = 90, eval = TRUE, include = FALSE}
+  
+td_lotr <- lotr %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words, by = "word")
+
+# prop.test
+n.words <- td_lotr %>%
+  count(book) %>%
+  select(n) %>%
+  unlist
+
+prop_test <- function(x, n) {
+    if (sum(is.na(x)) > 1 | any(x < 6)) {
+      return(1.0)
+    } else {
+      return(prop.test(x[!is.na(x)], n[!is.na(x)], correct = FALSE)$p.value)
+    }
+}
+
+top.n.words <- td_lotr %>%
+  group_by(book) %>%
+  count(word, sort = TRUE) %>%
+  group_by(book) %>% 
+  mutate(p = n / sum(n), N = sum(n)) %>%
+  select(book, word, n, N) %>%
+  group_by(word) %>%
+  summarize(pval = prop_test(n, N), n = sum(n)) %>%
+  filter(n > 100, pval < .05) %>%
+  arrange(-n) %>% 
+  mutate(word.id = 1:length(word)) %>%
+  select(word.id, word) %>%
+  filter(word.id < 30)
+
+
+
+td_lotr %>%
+  right_join(top.n.words, by = "word") %>%
+  group_by(book) %>%
+  count(word, sort = TRUE) %>%
+  left_join(top.n.words, by = "word") %>%
+  mutate(word = reorder(word, word.id)) %>%
+  mutate(n = n / sum(n)) %>%
+  ggplot(aes(word, n)) +
+  geom_bar(stat = "identity") +
+  xlab(NULL) +
+  theme_classic() + 
+  facet_wrap(~ book, nrow = 3) + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Frequency of word occurence")
+
+
+```
+
+## Sentiment analysis
+
+One way to analyze the sentiment of a text is to consider the text as a combination of its individual words and the sentiment content of the whole text as the sum of the sentiment content of the individual words. Since LOTR is naturally divided into chapters we can apply sentiment analysis to them and plot their sentiment scores.
+
+The three general-purpose lexicons available in **tidytext** package are
+
+ - AFINN from Finn Årup Nielsen,
+ - bing from Bing Liu and collaborators, and
+ - nrc from Saif Mohammad and Peter Turney.
+
+I will use **Bing** lexicon which is simply a *tibble* with words and positive and negative words:
+
+```{r}
+get_sentiments("bing") %>% head
+
+```
+
+and this is how you run sentiment analysis *tidytext* way: 
+
+```{r, echo = TRUE, fig.height=10, fig.width=9, dpi = 90}
+
+lotr %>%
+  # split text into words
+  unnest_tokens(word, text) %>%
+  # remove stop words
+  anti_join(stop_words, by = "word") %>%
+  # add sentiment scores to words
+  left_join(get_sentiments("bing"), by = "word") %>%
+  # count number of negative and positive words
+  count(chapter, book, sentiment) %>%
+  spread(key = sentiment, value = n) %>%
+  ungroup %>%
+  # create centered score
+  mutate(sentiment = positive - negative - 
+           mean(positive - negative)) %>%
+  select(book, chapter, sentiment) %>%
+  # reorder chapter levels
+  mutate(chapter = factor(as.character(chapter), 
+                levels = levels(chapter)[61:1])) %>%
+  # plot
+  ggplot(aes(x = chapter, y = sentiment)) + 
+  geom_bar(stat = "identity", aes(fill = book)) + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 90)) + 
+  coord_flip() + 
+  ylim(-250, 250) +
+  ggtitle("Centered sentiment scores", 
+          subtitle = "for LOTR chapters")
+
+```
+
+It's pretty neat if you ask me. 
+
+-------------------------------------------
+
+Code for this post can be found here:
+[github](https://github.com/jakubglinka/posts/tree/master/text_mining_part1)
+
+
