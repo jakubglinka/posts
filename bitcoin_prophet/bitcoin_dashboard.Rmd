@@ -1,0 +1,73 @@
+---
+title: "Bitcoin dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(highcharter)
+library(magrittr)
+```
+
+Page 1
+===================================== 
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Bitcoin stocks value
+
+```{r}
+
+library("quantmod")
+library(forecast)
+
+x <- getSymbols("GOOG", auto.assign = FALSE)
+eurkpw <- getSymbols("EUR/KPW", src = "oanda", auto.assign = FALSE)
+
+data(sample_matrix)
+colnames(sample_matrix) <- c("value", "lower", "upper", "something")
+sample.xts <- as.xts(sample_matrix, descr='my new xts object')
+
+xx <- forecast(ets(USAccDeaths), h = 370, level = 95)
+
+x %>% hchart %>% hc_add_theme(hc_theme_darkunica()) %>%
+  hc_add_series(xx)
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Number of bitcoin transactions
+
+```{r}
+
+library("quantmod")
+
+x <- getSymbols("GOOG", auto.assign = FALSE)
+
+x %>% hchart %>% hc_add_theme(hc_theme_darkunica())
+
+```
+
+### Chart C
+
+```{r}
+
+library("quantmod")
+
+x <- getSymbols("GOOG", auto.assign = FALSE)
+
+x %>% hchart %>% hc_add_theme(hc_theme_darkunica())
+
+```
+
+Page 2
+===================================== 
+
+
+

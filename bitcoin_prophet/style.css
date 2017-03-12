@@ -1,0 +1,13 @@
+.chart-stage-flex, .chart-wrapper {
+	background-color: black;
+}
+
+.navbar-fixed-top {
+	background-color: black;
+	border-color: black;
+}
+
+
+body , .div-container-fluid {
+	background: black;
+}

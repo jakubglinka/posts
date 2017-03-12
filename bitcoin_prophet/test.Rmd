@@ -1,0 +1,324 @@
+---
+# https://github.com/dimitris1ps/zurichRMeetup
+title: "&nbsp;&nbsp;&nbsp;&nbsp;Zurich R User meetup: Visualization special"
+output: 
+  flexdashboard::flex_dashboard:
+    source_code: "http://bit.do/zurichR"
+    navbar:
+      - { title: "Authors: Maciej, Dimitris", href: "mailto:mbledowski@ebay.com; dpsaradellis@ebay.com", align: right }
+    orientation: rows
+    vertical_layout: fill
+    logo: logo.png
+    favicon: favicon.ico
+    storyboard: false
+    theme: flatly
+    highlight: pygments
+
+---
+
+<style type="text/css"> .sidebar { overflow: auto; } </style>
+
+```{r setup, include=FALSE}
+## Run once
+# install.packages("pacman")
+# install.packages("devtools")
+# install.packages("magrittr")
+# install.packages("dplyr")
+# devtools::install_github("jrowen/rhandsontable")
+# devtools::install_github("rstudio/leaflet")
+# devtools::install_github("rstudio/DT")
+# devtools::install_github("rstudio/shiny")
+# devtools::install_github("rstudio/crosstalk")
+# devtools::install_github("jcheng5/d3scatter")
+# devtools::install_github("rstudio/leaflet@joe/feature/crosstalk-filter")
+# devtools::install_github("rstudio/DT@joe/feature/crosstalk")
+# devtools::install_github("hadley/ggplot2")
+# devtools::install_github("jbkunst/highcharter")
+# devtools::install_github("timelyportfolio/parsetR")
+# # devtools::install_github("rstudio/d3heatmap")
+# devtools::install_github("renkun-ken/formattable")
+## not run 
+
+pacman::p_load(dplyr, shiny, flexdashboard, crosstalk, highcharter, ggplot2, parsetR, DT, 
+               leaflet, d3scatter, d3heatmap, magrittr, formattable, rhandsontable)
+
+#### Data set 1
+quakes$class <- factor(floor(quakes$mag), labels = c("Light", "Moderate", "Strong"))
+
+set.seed(10101)
+quakes <- quakes %>% sample_n(200)
+
+quakesCT <- SharedData$new(quakes)
+###################
+
+#### Data set 2
+set.seed(1979)
+
+dfShankey <- data_frame(origins = sample(c('Zurich', 'Warsaw', 'Athens', 'Bern'), size = 100, replace = TRUE), 
+                 destinations = sample(c('Wellington', 'New York', 'Hanoi', 'Maseru'), size = 100, replace = TRUE)) %>% 
+  group_by(origins, destinations) %>% summarize(counts = n()) %>% ungroup() %>% arrange(desc(counts))
+
+dfShankeyCT <- SharedData$new(dfShankey)
+###################
+
+#### Data set 3
+mtcarsCT <- SharedData$new(mtcars)
+###################
+```
+
+| &nbsp; <i class="fa fa-home fa-3">&nbsp;</i> Home |
+===================================== 
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+filter_slider("mag", "Magnitude", quakesCT, ~mag, step = 0.1)
+filter_slider("depth", "Depth", quakesCT, ~depth)
+filter_slider("counts", "Flights (sankeyNetwork)", dfShankeyCT, ~counts, step = 1)
+filter_slider("mpg", "Miles per Gallon (heatmap)", mtcarsCT, ~mpg, step = 0.1)
+filter_slider("hp", "horsepower (heatmap)", mtcarsCT, ~hp, step = 1)
+```
+
+<font-size:10>Copyright &copy; 2016 <b>Zurich User meetup: Visualization special</b>.<br><br> Built using <ul class="dashed"><li>R,</li> <li>flexdashboard,</li> <li>shiny,</li> <li>DT,</li> <li>leaflet,</li> <li>highcharter,</li> <li>d3scatter,</li> <li>parsetR,</li> <li>ggplot2,</li> <li>formattable,</li> <li>rhandsontable,</li>
+<li>d3heatmap, </li><li>crosstalk and <span style="font-size:125%;color:red;">&nbsp; &hearts;</span></font-size></li> </ul>
+
+Row 1
+-----------------------------------------------------------------------
+
+### Leaflet
+
+```{r}
+pal <- colorFactor(c("#1f77bf", "#ff7f0e", "#2ca02c"), quakes$class)
+leaflet(quakesCT) %>% addTiles() %>% addCircles(radius = ~mag * 7000, weight = 1, fillOpacity = 0.8,
+  label = ~as.character(mag), color = ~pal(class))
+```
+
+### D3scatter
+
+```{r}
+# d3scatter(quakesCT, x = ~depth, y = ~stations, color = ~class)
+```
+
+### HighCharter
+
+```{r include=TRUE}
+
+renderHighchart({hchart(quakesCT$data(withSelection = TRUE, withFilter = TRUE)$class, colorByPoint = TRUE)})
+
+```
+
+### Ggplot
+
+```{r include=TRUE}
+renderPlot({
+  df <- quakesCT$data(withSelection = TRUE, withFilter = TRUE)
+  ggplot(df, aes(x = mag, fill = selection_factor(df))) +
+    geom_histogram(binwidth = 0.2) + scale_fill_selection("#444444", "skyblue1")})
+```
+
+### SankeyNetwork
+
+```{r}
+renderParset({
+  parset(dfShankeyCT$data(withSelection = TRUE, withFilter = TRUE), dimensions = c('origins', 'destinations'), 
+       value = htmlwidgets::JS("function(d){return d.counts}"), tension = 0.5)})
+```
+
+
+Row 2
+-----------------------------------------------------------------------
+
+### Datatable
+
+```{r}
+datatable(quakesCT, rownames = FALSE, extensions = 'Scroller', 
+          options = list(scrollY = 200,scroller = TRUE))
+```
+
+### D3heatmap
+
+```{r}
+renderD3heatmap({
+  df3 <- mtcarsCT$data(withSelection = TRUE, withFilter = TRUE)
+  d3heatmap(df3[, -12], scale = "column", colors = "Spectral")
+})
+```
+
+| &nbsp; <i class="fa fa-table fa-3">&nbsp;</i> Just Tables |
+===================================== 
+
+
+Row 1
+-------------------------------------
+    
+### DT with extentions
+    
+```{r}
+df3 <- mtcars
+df3$Cars <- rownames(mtcars)
+cbind(Brands=df3[, 12], df3[, -12]) %>% 
+    datatable(rownames=F, 
+            # filter = 'top',
+              callback=JS('$("a.buttons-copy").css("background","#008CBA"); 
+               $("a.buttons-copy").css("font-size","15px");
+               $("a.buttons-copy").css("border-radius", "8px");
+               $("a.buttons-copy").css("margin-right","0px");
+               $("a.buttons-copy").hover(function(){
+                                         $(this).css("background-color", "#e7e7e7");
+                                         $(this).css("box-shadow", "0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19)");
+                                         }, function(){
+                                         $(this).css("background-color", "#008CBA");
+                                         $(this).css("box-shadow", "0 12px 16px 0 rgba(0,0,0,0), 0 17px 50px 0 rgba(0,0,0,0)");
+                                         });
+               
+               $("a.buttons-collection").css("background","#008CBA"); 
+               $("a.buttons-collection").css("font-size","15px");
+               $("a.buttons-collection").css("border-radius", "8px");
+               $("a.buttons-collection").css("margin-right","0px");
+               $("a.buttons-collection").hover(function(){
+                                         $(this).css("background-color", "#e7e7e7");
+                                         $(this).css("box-shadow", "0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19)");
+                                         }, function(){
+                                         $(this).css("background-color", "#008CBA");
+                                         $(this).css("box-shadow", "0 12px 16px 0 rgba(0,0,0,0), 0 17px 50px 0 rgba(0,0,0,0)");
+                                         });
+                
+               return table;'),
+            extensions = 'Buttons',
+            options = list(rownames = F,
+                           searching=F,
+                           paging = T,
+                           bInfo = F,
+                           columnDefs = list(list(className = 'dt-left',  targets = 0),
+                                             list(className = 'dt-center',  targets = 1:11)),
+                           pageLength = 10,
+                           initComplete = JS("function(settings, json) {",
+                                             "$(this.api().table().header()).css({'background-color': '#99ccff', 'color': '#003333'});","}"),
+                           dom = 'Bfrtip',
+                           buttons = list(list(extend = 'copy', text = '&nbsp;&nbsp;&nbsp;&nbsp;COPY&nbsp;&nbsp;&nbsp;&nbsp;'),
+                                          list(extend = 'collection',
+                                               buttons = c('csv', 'pdf'),
+                                               text = 'DOWNLOAD')
+                           )
+            )
+  )
+
+```
+   
+Row 2 {.tabset .tabset-fade}
+-------------------------------------
+   
+### Plain old DT
+
+```{r}
+datatable(quakes, rownames = FALSE, extensions = 'Scroller', 
+          options = list(scrollY = 200,scroller = TRUE))
+```   
+ 
+### formattable
+    
+```{r}
+ft <- data.frame(
+  id = 1:10,
+  name = c("Bob", "Ashley", "James", "David", "Jenny", 
+    "Hans", "Leo", "John", "Emily", "Lee"), 
+  age = c(28, 27, 30, 28, 29, 29, 27, 27, 31, 30),
+  grade = c("C", "A", "A", "C", "B", "B", "B", "A", "C", "C"),
+  test1_score = c(8.9, 9.5, 9.6, 8.9, 9.1, 9.3, 9.3, 9.9, 8.5, 8.6),
+  test2_score = c(9.1, 9.1, 9.2, 9.1, 8.9, 8.5, 9.2, 9.3, 9.1, 8.8),
+  final_score = c(9, 9.3, 9.4, 9, 9, 8.9, 9.25, 9.6, 8.8, 8.7),
+  registered = c(TRUE, FALSE, TRUE, FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE),
+  stringsAsFactors = FALSE)
+
+formattable(ft, list(
+  age = color_tile("white", "orange"),
+  grade = formatter("span",
+    style = x ~ ifelse(x == "A", style(color = "green", font.weight = "bold"), NA)),
+  test1_score = normalize_bar("pink", 0.2),
+  test2_score = normalize_bar("pink", 0.2),
+  final_score = formatter("span",
+    style = x ~ style(color = ifelse(rank(-x) <= 3, "green", "gray")),
+    x ~ sprintf("%.2f (rank: %02d)", x, rank(-x))),
+  registered = formatter("span", 
+    style = x ~ style(color = ifelse(x, "green", "red")),
+    x ~ icontext(ifelse(x, "ok", "remove"), ifelse(x, "Yes", "No")))
+))
+```
+
+
+### Cool rhandsontable
+    
+```{r}
+DF = data.frame(val = 1:10, bool = TRUE, big = LETTERS[1:10],
+                small = letters[1:10],
+                dt = seq(from = Sys.Date(), by = "days", length.out = 10),
+                stringsAsFactors = FALSE)
+
+DF$chart = c(sapply(1:5,
+                    function(x) jsonlite::toJSON(list(values=rnorm(10),
+                                                      options = list(type = "bar")))),
+             sapply(1:5,
+                    function(x) jsonlite::toJSON(list(values=rnorm(10),
+                                                      options = list(type = "line")))))
+
+rhandsontable(DF, rowHeaders = NULL, width = 550, height = 300) %>%
+  hot_col("chart", renderer = htmlwidgets::JS("renderSparkline"), columnSorting = TRUE, stretchH = "all")
+```
+
+### Cool..er rhandsontable
+    
+```{r}
+DF = data.frame(
+  title = c(
+    "<a href='http://www.ebay.com/itm/NEW-Professional-JavaScript-for-Web-Developers-by-Nicholas-C-Zakas-Paperback-Boo-/380586356617?hash=item589cb6ef89:g:1w4AAOSwo3pWcAJs'>Professional JavaScript for Web Developers</a>",
+    "<a href='http://www.ebay.com/itm/JavaScript-The-Good-Parts-/152177773737?hash=item236e808ca9:g:YyAAAOSwhMFXkvdV'>JavaScript: The Good Parts</a>",
+    "<a href='http://shop.oreilly.com/product/9780596805531.do'>JavaScript: The Definitive Guide</a>"
+  ),
+  desc = c(
+    "This <a href='http://bit.ly/sM1bDf'>book</a> provides a developer-level introduction along with more advanced and useful features of <b>JavaScript</b>.",
+    "This book provides a developer-level introduction along with <b>more advanced</b> and useful features of JavaScript.",
+    "<em>JavaScript: The Definitive Guide</em> provides a thorough description of the core <b>JavaScript</b> language and both the legacy and standard DOMs implemented in web browsers."
+  ),
+  comments = c(
+    "I would rate it &#x2605;&#x2605;&#x2605;&#x2605;&#x2606;",
+    "This is the book about JavaScript",
+    "I've never actually read it, but the <a href='http://shop.oreilly.com/product/9780596805531.do'>comments</a> are highly <strong>positive</strong>."
+  ), 
+  cover = c(
+    "http://ecx.images-amazon.com/images/I/51bRhyVTVGL._SL50_.jpg",
+    "http://ecx.images-amazon.com/images/I/51gdVAEfPUL._SL50_.jpg",
+    "http://ecx.images-amazon.com/images/I/51VFNL4T7kL._SL50_.jpg"
+ ),
+ stringsAsFactors = FALSE
+)
+
+rhandsontable(DF, allowedTags = "<em><b><strong><a><big>", 
+              width = 800, height = 450, rowHeaders = FALSE) %>%
+  hot_cols(colWidths = c(200, 200, 200, 80)) %>%
+  hot_col(1:2, renderer = "html") %>%
+  hot_col(1:3, renderer = htmlwidgets::JS("safeHtmlRenderer")) %>%
+  hot_col(4, renderer = "
+    function(instance, td, row, col, prop, value, cellProperties) {
+      var escaped = Handsontable.helper.stringify(value),
+        img;
+  
+      if (escaped.indexOf('http') === 0) {
+        img = document.createElement('IMG');
+        img.src = value;
+  
+        Handsontable.Dom.addEvent(img, 'mousedown', function (e){
+          e.preventDefault(); // prevent selection quirk
+        });
+  
+        Handsontable.Dom.empty(td);
+        td.appendChild(img);
+      }
+      else {
+        // render as text
+        Handsontable.renderers.TextRenderer.apply(this, arguments);
+      }
+  
+      return td;
+    }")
+```

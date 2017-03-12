@@ -63,6 +63,11 @@ with field *text* simply containing lines of text from the books:
 ```
 
 
+<!-- ## Most differentiating words -->
+
+<!-- Let's see is there difference in words distribution across the books. -->
+<!-- We scan through all words in the three parts of the trylogy and present only top most significantly describing one (or two) of three books. I will use simple **prop.test** to order words with respect to the p-value... -->
+
 
 
 ## Sentiment analysis
@@ -127,7 +132,7 @@ lotr %>%
           subtitle = "for LOTR chapters")
 ```
 
-![plot of chunk unnamed-chunk-4]({{ site.url }}/img/2017-03-01-text_mining_part1-unnamed-chunk-4-1.png)
+![plot of chunk unnamed-chunk-4]({{ site.url }}/img/2017-02-26-text_mining_part1-unnamed-chunk-4-1.png)
 
 It's pretty neat if you ask me. 
 
